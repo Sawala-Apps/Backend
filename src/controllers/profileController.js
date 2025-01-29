@@ -1,5 +1,5 @@
 const profileModel = require("../models/profileModel");
-const bcrypt = require("bcrypt");
+const followModel = require("../models/followModel");
 const { uploadProfilePicture } = require("../utils/profilePicUpload");
 const { deleteUserMedia } = require("../utils/deleteUserMedia");
 
@@ -8,11 +8,16 @@ exports.getUserProfile = async (req, res) => {
   try {
     const { uid } = req.user;
     const user = await profileModel.getUserProfile(uid);
-    
+    const followStats = await followModel.getUserFollowStats(uid);
+
     // Modifikasi path gambar agar bisa diakses via URL
     if (user.profile_picture) {
       user.profile_picture = `${req.protocol}://${req.get("host")}/uploads/${uid}/profilepic/${uid}`;
     }
+
+    // Gabungkan hasil
+    user.followers = followStats.followers;
+    user.following = followStats.following;
 
     res.status(200).json(user);
   } catch (err) {

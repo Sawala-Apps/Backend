@@ -39,12 +39,6 @@ exports.getUserProfile = async (uid) => {
   }
 };
 
-
-
-
-
-
-
 // Update profile (fullname & profile picture)
 exports.updateProfile = async (uid, fullname, profilePicture) => {
   return new Promise((resolve, reject) => {
