@@ -1,11 +1,11 @@
 const { v4: uuidv4 } = require("uuid");
 const feedModel = require("../models/feedModel");
-const { uploadFeedMedia, deleteFeedMedia} = require("../utils/feedUpload"); // Import fungsi utilitas
+const { uploadFeedMedia, deleteFeedMedia} = require("../utils/feedUpload");
 
 // Get all feeds
 exports.getFeeds = async (req, res) => {
   try {
-    const { uid } = req.user; // Extract user ID from JWT payload
+    const { uid } = req.user;
     const feeds = await feedModel.getFeeds(uid);
     res.status(200).json({ feeds });
   } catch (err) {

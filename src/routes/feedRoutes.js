@@ -5,7 +5,7 @@ const feedController = require("../controllers/feedController");
 const authMiddleware = require("../middlewares/authMiddleware");
 
 // Setup multer for handling file uploads
-const upload = multer({ dest: "temp/" }); // File sementara akan disimpan di folder temp/
+const upload = multer({ dest: "temp/feeds/" }); // File sementara akan disimpan di folder temp/
 
 // Middleware untuk proteksi endpoint
 router.use(authMiddleware);
