@@ -12,6 +12,9 @@ router.use(authMiddleware);
 // Get user profile (dengan postingan)
 router.get("/profile", profileController.getUserProfile);
 
+// Endpoint untuk melihat profil user lain
+router.get("/profile/:uid", authMiddleware, profileController.getOtherUserProfile);
+
 // Update profile (fullname & foto profil)
 router.patch("/profile", upload.single("profilePicture"), profileController.updateProfile);
 

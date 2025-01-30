@@ -39,6 +39,66 @@ exports.getUserProfile = async (uid) => {
   }
 };
 
+// Get Other User Profile (tanpa data sensitif + cek apakah user mengikuti akun ini)
+exports.getOtherUserProfile = async (requesterUid, targetUid) => {
+  try {
+    const userQuery = `
+      SELECT uid, fullname, profile_picture 
+      FROM tb_users 
+      WHERE uid = ?
+    `;
+
+    const checkFollowQuery = `
+      SELECT COUNT(*) AS is_following 
+      FROM tb_follows 
+      WHERE follower_uid = ? AND followed_uid = ?
+    `;
+
+    const postsQuery = `
+      SELECT postid, content_text, content_image, created_at 
+      FROM tb_feed 
+      WHERE uid = ? 
+      ORDER BY created_at DESC
+    `;
+
+    // Ambil data user
+    const userData = await new Promise((resolve, reject) => {
+      db.query(userQuery, [targetUid], (err, results) => {
+        if (err) return reject(err);
+        if (results.length === 0) return reject(new Error("User not found"));
+        resolve(results[0]);
+      });
+    });
+
+    // Cek apakah requester sudah follow user yang dilihat
+    const followStatus = await new Promise((resolve, reject) => {
+      db.query(checkFollowQuery, [requesterUid, targetUid], (err, results) => {
+        if (err) return reject(err);
+        resolve(results[0].is_following > 0);
+      });
+    });
+
+    // Jika user melihat profil sendiri, selalu tampilkan postingan
+    let userPosts = [];
+    if (requesterUid === targetUid || followStatus) {
+      userPosts = await new Promise((resolve, reject) => {
+        db.query(postsQuery, [targetUid], (err, results) => {
+          if (err) return reject(err);
+          resolve(results);
+        });
+      });
+    }
+
+    userData.posts = userPosts || [];
+    return userData;
+  } catch (err) {
+    console.error("Error fetching user profile:", err);
+    throw new Error("Error fetching user profile: " + err.message);
+  }
+};
+
+
+
 // Update profile (fullname & profile picture)
 exports.updateProfile = async (uid, fullname, profilePicture) => {
   return new Promise((resolve, reject) => {

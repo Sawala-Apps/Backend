@@ -25,6 +25,31 @@ exports.getUserProfile = async (req, res) => {
   }
 };
 
+// Get Other User Profile (tanpa data sensitif)
+exports.getOtherUserProfile = async (req, res) => {
+  try {
+    const requesterUid = req.user.uid; // User yang melihat profil
+    const targetUid = req.params.uid; // User yang ingin dilihat
+
+    const user = await profileModel.getOtherUserProfile(requesterUid, targetUid);
+    const followStats = await followModel.getUserFollowStats(targetUid);
+
+    // Modifikasi path gambar agar bisa diakses via URL
+    if (user.profile_picture) {
+      user.profile_picture = `${req.protocol}://${req.get("host")}/uploads/${targetUid}/profilepic/${targetUid}`;
+    }
+
+    // Tambahkan jumlah followers & following
+    user.followers = followStats.followers;
+    user.following = followStats.following;
+
+    res.status(200).json(user);
+  } catch (err) {
+    res.status(404).json({ error: err.message });
+  }
+};
+
+
 // Update Profile (Fullname & Profile Picture)
 exports.updateProfile = async (req, res) => {
   try {
