@@ -4,6 +4,7 @@ const authRoutes = require("./routes/authRoutes");
 const feedRoutes = require("./routes/feedRoutes");
 const profileRoutes = require("./routes/profileRoutes");
 const followRoutes = require("./routes/followRoutes");
+const likeRoutes = require("./routes/likeRoutes");
 
 // Load environment variables
 dotenv.config();
@@ -18,5 +19,6 @@ app.use(authRoutes);
 app.use(feedRoutes);
 app.use(profileRoutes);
 app.use(followRoutes);
+app.use(likeRoutes);
 
 module.exports = app;

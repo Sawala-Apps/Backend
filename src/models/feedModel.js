@@ -1,10 +1,12 @@
 const db = require("../config/db");
 
 // Get all feeds with filtering algorithm
+// Get all feeds with filtering algorithm & like count
 exports.getFeeds = async (uid) => {
   return new Promise((resolve, reject) => {
     const query = `
-      SELECT f.*, u.fullname, u.profile_picture
+      SELECT f.*, u.fullname, u.profile_picture,
+        (SELECT COUNT(*) FROM tb_likes l WHERE l.postid = f.postid) AS like_count
       FROM tb_feed f
       LEFT JOIN tb_follows fol ON fol.follower_uid = ?
       LEFT JOIN tb_users u ON u.uid = f.uid
@@ -17,6 +19,7 @@ exports.getFeeds = async (uid) => {
     });
   });
 };
+
 
 // Create a feed
 exports.createFeed = async (postid, uid, contentText, contentImage) => {
@@ -52,10 +55,12 @@ exports.deleteFeed = async (postid, uid) => {
 };
 
 // Get feed details
+// Get feed details with like count
 exports.getFeedDetails = async (postid) => {
   return new Promise((resolve, reject) => {
     const query = `
-      SELECT f.*, u.fullname, u.profile_picture
+      SELECT f.*, u.fullname, u.profile_picture,
+        (SELECT COUNT(*) FROM tb_likes l WHERE l.postid = f.postid) AS like_count
       FROM tb_feed f
       LEFT JOIN tb_users u ON u.uid = f.uid
       WHERE f.postid = ?
@@ -66,3 +71,4 @@ exports.getFeedDetails = async (postid) => {
     });
   });
 };
+
