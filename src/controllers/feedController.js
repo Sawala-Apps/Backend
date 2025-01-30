@@ -85,7 +85,8 @@ exports.deleteFeed = async (req, res) => {
 exports.getFeedDetails = async (req, res) => {
   try {
     const { postid } = req.params;
-    const feed = await feedModel.getFeedDetails(postid);
+    const { uid } = req.user;
+    const feed = await feedModel.getFeedDetails(postid, uid);
     res.status(200).json({ feed });
   } catch (err) {
     res.status(404).json({ error: err.message });
