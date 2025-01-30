@@ -80,18 +80,18 @@ exports.deleteFeed = async (req, res) => {
   }
 };
 
-
+// Get Feed Detail with comments
 exports.getFeedDetails = async (req, res) => {
   try {
     const { postid } = req.params;
     const { uid } = req.user;
-    
+
     if (!postid || !uid) {
       throw new Error('Missing required parameters');
     }
 
     const feed = await feedModel.getFeedDetails(postid, uid);
-    res.status(200).json({ feed });
+    res.status(200).json(feed);
   } catch (err) {
     res.status(404).json({ error: err.message });
   }

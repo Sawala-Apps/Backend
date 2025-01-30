@@ -7,6 +7,7 @@ exports.getFeeds = async (uid) => {
       SELECT f.*, u.fullname, u.profile_picture,
         (SELECT COUNT(*) FROM tb_likes l WHERE l.postid = f.postid) AS like_count,
         (SELECT COUNT(*) FROM tb_views v WHERE v.postid = f.postid) AS view_count,
+        (SELECT COUNT(*) FROM tb_comments c WHERE c.postid = f.postid) AS comment_count,
         EXISTS (SELECT 1 FROM tb_likes l WHERE l.postid = f.postid AND l.uid = ?) AS is_liked
       FROM tb_feed f
       LEFT JOIN tb_follows fol ON fol.follower_uid = ?
@@ -20,6 +21,7 @@ exports.getFeeds = async (uid) => {
     });
   });
 };
+
 
 
 
@@ -56,10 +58,11 @@ exports.deleteFeed = async (postid, uid) => {
   });
 };
 
+// Get Feed Details with comments and replies
 exports.getFeedDetails = async (postid, uid) => {
   return new Promise((resolve, reject) => {
     const checkViewQuery = `SELECT viewid FROM tb_views WHERE postid = ? AND uid = ?`;
-    
+
     db.query(checkViewQuery, [postid, uid], (err, viewResults) => {
       if (err) return reject(err);
 
@@ -68,13 +71,12 @@ exports.getFeedDetails = async (postid, uid) => {
           INSERT INTO tb_views (viewid, postid, uid, created_at) 
           VALUES (UUID(), ?, ?, NOW())
         `;
-        
         db.query(insertViewQuery, [postid, uid], (insertErr) => {
           if (insertErr) return reject(insertErr);
         });
       }
 
-      // Using the exact same query structure as getFeeds for is_liked
+      // Query utama untuk mendapatkan feed detail
       const getFeedQuery = `
         SELECT 
           f.*,
@@ -82,6 +84,7 @@ exports.getFeedDetails = async (postid, uid) => {
           u.profile_picture,
           (SELECT COUNT(*) FROM tb_likes l WHERE l.postid = f.postid) AS like_count,
           (SELECT COUNT(*) FROM tb_views v WHERE v.postid = f.postid) AS view_count,
+          (SELECT COUNT(*) FROM tb_comments c WHERE c.postid = f.postid) AS comment_count,
           EXISTS (SELECT 1 FROM tb_likes l WHERE l.postid = f.postid AND l.uid = ?) AS is_liked
         FROM tb_feed f
         LEFT JOIN tb_users u ON u.uid = f.uid
@@ -92,8 +95,44 @@ exports.getFeedDetails = async (postid, uid) => {
       db.query(getFeedQuery, [uid, postid], (feedErr, feedResults) => {
         if (feedErr) return reject(feedErr);
         if (feedResults.length === 0) return reject(new Error('Feed not found'));
-        
-        resolve(feedResults[0]);
+
+        const feedData = feedResults[0];
+
+        // Query untuk mendapatkan komentar utama beserta balasannya
+        const getCommentsQuery = `
+          SELECT c.commentid, c.content, c.created_at, c.uid, u.fullname, u.profile_picture,
+            (SELECT COUNT(*) FROM tb_comments r WHERE r.parent_commentid = c.commentid) AS reply_count
+          FROM tb_comments c
+          LEFT JOIN tb_users u ON u.uid = c.uid
+          WHERE c.postid = ? AND c.parent_commentid IS NULL
+          ORDER BY c.created_at ASC
+        `;
+
+        db.query(getCommentsQuery, [postid], (commentErr, commentResults) => {
+          if (commentErr) return reject(commentErr);
+
+          // Query untuk mendapatkan semua balasan dari komentar utama
+          const getRepliesQuery = `
+            SELECT c.commentid, c.content, c.created_at, c.uid, u.fullname, u.profile_picture, c.parent_commentid
+            FROM tb_comments c
+            LEFT JOIN tb_users u ON u.uid = c.uid
+            WHERE c.postid = ? AND c.parent_commentid IS NOT NULL
+            ORDER BY c.created_at ASC
+          `;
+
+          db.query(getRepliesQuery, [postid], (replyErr, replyResults) => {
+            if (replyErr) return reject(replyErr);
+
+            // Strukturkan data komentar dengan balasannya
+            const comments = commentResults.map(comment => ({
+              ...comment,
+              replies: replyResults.filter(reply => reply.parent_commentid === comment.commentid)
+            }));
+
+            // Gabungkan feed dengan komentar
+            resolve({ ...feedData, comments });
+          });
+        });
       });
     });
   });
