@@ -14,7 +14,7 @@ exports.checkUserLike = (uid, postid) => {
 // Tambahkan like ke database
 exports.addLike = (uid, postid) => {
   return new Promise((resolve, reject) => {
-    const query = "INSERT INTO tb_likes (uid, postid, created_at) VALUES (?, ?, NOW())";
+    const query = "INSERT INTO tb_likes (likeid, uid, postid, created_at) VALUES (UUID(), ?, ?, NOW())";
     db.query(query, [uid, postid], (err, results) => {
       if (err) return reject(err);
       resolve(results);
