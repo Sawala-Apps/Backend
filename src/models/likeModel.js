@@ -3,10 +3,10 @@ const db = require("../config/db");
 // Cek apakah user sudah like postingan ini
 exports.checkUserLike = (uid, postid) => {
   return new Promise((resolve, reject) => {
-    const query = "SELECT likeid FROM tb_likes WHERE uid = ? AND postid = ?";
+    const query = "SELECT EXISTS(SELECT 1 FROM tb_likes WHERE uid = ? AND postid = ?) AS liked";
     db.query(query, [uid, postid], (err, results) => {
       if (err) return reject(err);
-      resolve(results.length > 0);
+      resolve(results[0].liked === 1);
     });
   });
 };
@@ -32,4 +32,3 @@ exports.removeLike = (uid, postid) => {
     });
   });
 };
-

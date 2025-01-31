@@ -1,7 +1,6 @@
 const mysql = require("mysql");
 const dotenv = require("dotenv");
 
-// Load environment variables
 dotenv.config();
 
 // Buat koneksi ke database

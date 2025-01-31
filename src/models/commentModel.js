@@ -1,5 +1,16 @@
 const db = require("../config/db");
 
+// Cek apakah komentar ada berdasarkan ID
+exports.getCommentById = (commentid) => {
+  return new Promise((resolve, reject) => {
+    const query = "SELECT * FROM tb_comments WHERE commentid = ?";
+    db.query(query, [commentid], (err, results) => {
+      if (err) return reject(err);
+      resolve(results.length > 0 ? results[0] : null);
+    });
+  });
+};
+
 // Menambahkan komentar ke postingan
 exports.addComment = (uid, postid, content) => {
   return new Promise((resolve, reject) => {
@@ -32,7 +43,6 @@ exports.addReply = (uid, parent_commentid, content) => {
   });
 };
 
-
 // Mengedit komentar
 exports.editComment = (commentid, content) => {
   return new Promise((resolve, reject) => {
@@ -62,4 +72,3 @@ exports.deleteComment = (commentid) => {
     });
   });
 };
-

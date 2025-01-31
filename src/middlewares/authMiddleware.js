@@ -1,20 +1,19 @@
 const jwt = require("jsonwebtoken");
 
-// Middleware untuk memverifikasi token JWT
 const authMiddleware = (req, res, next) => {
-  const token = req.header("Authorization")?.replace("Bearer ", "");
-
-  if (!token) {
-    return res.status(401).json({ message: "Access denied. No token provided." });
-  }
-
   try {
-    // Verifikasi token
-    const decoded = jwt.verify(token, process.env.JWT_SECRET); // Gunakan secret dari .env
-    req.user = decoded; // Simpan payload token ke request object
+    const authHeader = req.header("Authorization");
+    if (!authHeader || !authHeader.toLowerCase().startsWith("bearer ")) {
+      return res.status(401).json({ message: "Access denied. No token provided." });
+    }
+
+    const token = authHeader.slice(7).trim(); // Hapus "Bearer " dengan aman
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    
+    req.user = decoded; // Simpan payload token di request object
     next();
   } catch (err) {
-    res.status(400).json({ message: "Invalid token." });
+    res.status(403).json({ message: "Invalid or expired token." });
   }
 };
 

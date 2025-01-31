@@ -4,7 +4,7 @@ const db = require("../config/db");
 exports.checkFollowing = async (followerUid, followedUid) => {
   return new Promise((resolve, reject) => {
     db.query(
-      "SELECT followid FROM tb_follows WHERE follower_uid = ? AND followed_uid = ?",
+      "SELECT EXISTS(SELECT 1 FROM tb_follows WHERE follower_uid = ? AND followed_uid = ?) AS isFollowing",
       [followerUid, followedUid],
       (err, results) => {
         if (err) {
@@ -12,7 +12,7 @@ exports.checkFollowing = async (followerUid, followedUid) => {
           reject(err);
           return;
         }
-        resolve(results && results.length > 0);
+        resolve(results[0].isFollowing === 1);
       }
     );
   });
@@ -48,13 +48,8 @@ exports.removeFollow = async (followerUid, followedUid) => {
           return;
         }
         
-        // Cek apakah ada baris yang terpengaruh oleh DELETE
-        if (result.affectedRows === 0) {
-          reject(new Error("Follow relationship not found"));
-          return;
-        }
-        
-        resolve(result);
+        // Jika tidak ada baris yang dihapus, return false agar tidak menyebabkan error di controller
+        resolve(result.affectedRows > 0);
       }
     );
   });

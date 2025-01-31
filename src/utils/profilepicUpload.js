@@ -1,5 +1,7 @@
-const fs = require("fs");
+const fs = require("fs").promises;
 const path = require("path");
+
+const allowedExtensions = [".png", ".jpg", ".jpeg"];
 
 /**
  * Upload profile picture
@@ -8,28 +10,29 @@ const path = require("path");
  * @returns {string} - Path gambar yang disimpan
  */
 const uploadProfilePicture = async (file, uid) => {
-  if (!file) return null; // Tidak ada file yang diupload
+  if (!file) return null;
 
   const uploadDir = path.join(__dirname, "../../upload", uid, "profilepic");
+  await fs.mkdir(uploadDir, { recursive: true });
 
-  // Pastikan folder ada
-  if (!fs.existsSync(uploadDir)) {
-    fs.mkdirSync(uploadDir, { recursive: true });
+  const ext = path.extname(file.originalname).toLowerCase();
+  if (!allowedExtensions.includes(ext)) {
+    throw new Error("Invalid file format. Allowed: .png, .jpg, .jpeg");
   }
 
-  // Ambil ekstensi file
-  const ext = path.extname(file.originalname);
   const newFilename = `${uid}${ext}`;
   const newFilePath = path.join(uploadDir, newFilename);
 
-  // Hapus file lama jika ada
-  fs.readdirSync(uploadDir).forEach((existingFile) => {
-    const existingFilePath = path.join(uploadDir, existingFile);
-    fs.unlinkSync(existingFilePath); // Hapus file lama
-  });
+  // Hapus file lama jika ada (gunakan try-catch untuk menangani error)
+  try {
+    const files = await fs.readdir(uploadDir);
+    await Promise.all(files.map(file => fs.unlink(path.join(uploadDir, file))));
+  } catch (err) {
+    console.warn("No old profile picture found or error deleting:", err.message);
+  }
 
-  // Pindahkan file baru ke direktori yang benar
-  fs.renameSync(file.path, newFilePath);
+  // Pindahkan file baru
+  await fs.rename(file.path, newFilePath);
 
   return `/uploads/${uid}/profilepic/${newFilename}`;
 };

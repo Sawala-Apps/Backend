@@ -74,13 +74,13 @@ exports.getOtherUserProfile = async (requesterUid, targetUid) => {
     const followStatus = await new Promise((resolve, reject) => {
       db.query(checkFollowQuery, [requesterUid, targetUid], (err, results) => {
         if (err) return reject(err);
-        resolve(results[0].is_following > 0);
+        resolve(results[0].is_following > 0 ? 1 : 0);  // 1 jika sudah follow, 0 jika belum
       });
     });
 
     // Jika user melihat profil sendiri, selalu tampilkan postingan
     let userPosts = [];
-    if (requesterUid === targetUid || followStatus) {
+    if (requesterUid === targetUid || followStatus === 1) {
       userPosts = await new Promise((resolve, reject) => {
         db.query(postsQuery, [targetUid], (err, results) => {
           if (err) return reject(err);
@@ -90,12 +90,14 @@ exports.getOtherUserProfile = async (requesterUid, targetUid) => {
     }
 
     userData.posts = userPosts || [];
+    userData.is_follow = followStatus;  // Menambahkan status follow pada userData
     return userData;
   } catch (err) {
     console.error("Error fetching user profile:", err);
     throw new Error("Error fetching user profile: " + err.message);
   }
 };
+
 
 
 
@@ -142,6 +144,7 @@ exports.updatePassword = (uid, oldPassword, newPassword) => {
     }
   });
 };
+
 
 // Delete user account
 exports.deleteAccount = async (uid) => {
