@@ -167,6 +167,3 @@ exports.getFeedDetails = async (postid, uid) => {
     });
   });
 };
-
-
-

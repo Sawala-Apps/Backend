@@ -11,26 +11,29 @@ const path = require("path");
 const uploadFeedMedia = async (files, uid, postid) => {
   if (!files || files.length === 0) return null; // Return null if no files uploaded
 
-  const uploadPath = path.join(__dirname, "../../upload", uid, "feed", postid);
+  const uploadPath = path.join(__dirname, "../../upload", uid, "feed");
 
   // Create directory if it doesn't exist
   if (!fs.existsSync(uploadPath)) {
     fs.mkdirSync(uploadPath, { recursive: true });
   }
 
+  let fileUrls = [];
+  
   files.forEach((file, index) => {
     const ext = path.extname(file.originalname);
-    const newFilename = `${postid}-${String(index + 1).padStart(2, "0")}${ext}`;
+    const newFilename = `${postid}${index === 0 ? '' : '-' + (index + 1)}${ext}`;
     const newPath = path.join(uploadPath, newFilename);
 
     // Rename and move the file
     fs.renameSync(file.path, newPath);
+
+    // Store the file URL
+    fileUrls.push(`/upload/${uid}/feed/${newFilename}`);
   });
 
-  // Return the folder path instead of file paths
-  return `/upload/${uid}/feed/${postid}/`;
+  return fileUrls;
 };
-
 
 /**
  * Delete all media files for a specific feed
@@ -38,10 +41,14 @@ const uploadFeedMedia = async (files, uid, postid) => {
  * @param {string} postid - Post ID
  */
 const deleteFeedMedia = async (uid, postid) => {
-  const uploadPath = path.join(__dirname, "../../upload", uid, "feed", postid);
+  const uploadPath = path.join(__dirname, "../../upload", uid, "feed");
 
   if (fs.existsSync(uploadPath)) {
-    fs.rmSync(uploadPath, { recursive: true, force: true });
+    fs.readdirSync(uploadPath).forEach((file) => {
+      if (file.startsWith(postid)) {
+        fs.unlinkSync(path.join(uploadPath, file));
+      }
+    });
   }
 };
 
