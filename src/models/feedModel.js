@@ -11,8 +11,7 @@ exports.checkPostExists = (postid) => {
   });
 };
 
-
-// Get all feeds with filtering algorithm
+//GET all feed
 exports.getFeeds = async (uid) => {
   return new Promise((resolve, reject) => {
     const query = `
@@ -20,14 +19,17 @@ exports.getFeeds = async (uid) => {
         (SELECT COUNT(*) FROM tb_likes l WHERE l.postid = f.postid) AS like_count,
         (SELECT COUNT(*) FROM tb_views v WHERE v.postid = f.postid) AS view_count,
         (SELECT COUNT(*) FROM tb_comments c WHERE c.postid = f.postid) AS comment_count,
-        EXISTS (SELECT 1 FROM tb_likes l WHERE l.postid = f.postid AND l.uid = ?) AS is_liked
+        EXISTS (SELECT 1 FROM tb_likes l WHERE l.postid = f.postid AND l.uid = ?) AS is_liked,
+        CASE 
+          WHEN fol.follower_uid IS NOT NULL THEN 1 
+          ELSE 0 
+        END AS is_followed
       FROM tb_feed f
-      LEFT JOIN tb_follows fol ON fol.follower_uid = ?
+      LEFT JOIN tb_follows fol ON fol.followed_uid = f.uid AND fol.follower_uid = ?
       LEFT JOIN tb_users u ON u.uid = f.uid
-      WHERE (fol.followed_uid = f.uid OR f.uid = ?)
-      ORDER BY f.created_at DESC
+      ORDER BY is_followed DESC, f.created_at DESC
     `;
-    db.query(query, [uid, uid, uid], (err, results) => {
+    db.query(query, [uid, uid], (err, results) => {
       if (err) return reject(err);
       resolve(results);
     });
