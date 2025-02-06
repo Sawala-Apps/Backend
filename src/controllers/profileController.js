@@ -106,6 +106,13 @@ exports.updatePassword = async (req, res) => {
 exports.deleteAccount = async (req, res) => {
   try {
     const { uid } = req.user;
+
+    // Cek apakah user ada sebelum menghapus
+    const userExists = await profileModel.getUserProfile(uid);
+    if (!userExists) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
     deleteUserMedia(uid);
     await profileModel.deleteAccount(uid);
     res.status(200).json({ message: "Account deleted successfully" });

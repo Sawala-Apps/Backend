@@ -14,10 +14,10 @@ router.use(authMiddleware);
 router.get("/feeds", feedController.getFeeds);
 
 // Create a feed
-router.post("/feeds", upload.array("mediaFiles", 10), feedController.createFeed);
+router.post("/feeds", upload.single("mediaFiles"), feedController.createFeed);
 
 // Edit a feed (PATCH)
-router.patch("/feeds/:postid", upload.array("mediaFiles", 10), feedController.editFeed);
+router.patch("/feeds/:postid", upload.single("mediaFiles"), feedController.editFeed);
 
 // Delete a feed
 router.delete("/feeds/:postid", feedController.deleteFeed);

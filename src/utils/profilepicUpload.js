@@ -1,40 +1,49 @@
-const fs = require("fs").promises;
+const ftp = require("basic-ftp");
 const path = require("path");
+const connectFTP = require("../config/ftp");
 
 const allowedExtensions = [".png", ".jpg", ".jpeg"];
 
 /**
- * Upload profile picture
+ * Upload profile picture ke FTP
  * @param {Object} file - File yang diupload dari request (req.file)
  * @param {string} uid - UID user
- * @returns {string} - Path gambar yang disimpan
+ * @returns {string} - URL gambar yang tersimpan
  */
 const uploadProfilePicture = async (file, uid) => {
   if (!file) return null;
-
-  const uploadDir = path.join(__dirname, "../../upload", uid, "profilepic");
-  await fs.mkdir(uploadDir, { recursive: true });
 
   const ext = path.extname(file.originalname).toLowerCase();
   if (!allowedExtensions.includes(ext)) {
     throw new Error("Invalid file format. Allowed: .png, .jpg, .jpeg");
   }
 
-  const newFilename = `${uid}${ext}`;
-  const newFilePath = path.join(uploadDir, newFilename);
+  const filename = `${uid}${ext}`;
+  const remoteDir = `/${uid}/profilepic/`;
+  const remotePath = `${remoteDir}${filename}`;
 
-  // Hapus file lama jika ada (gunakan try-catch untuk menangani error)
+  const client = await connectFTP();
   try {
-    const files = await fs.readdir(uploadDir);
-    await Promise.all(files.map(file => fs.unlink(path.join(uploadDir, file))));
+    // Pastikan direktori di FTP tersedia
+    await client.ensureDir(remoteDir);
+
+    // Hapus file lama jika ada
+    const fileList = await client.list(remoteDir);
+    for (const file of fileList) {
+      await client.remove(`${remoteDir}${file.name}`);
+    }
+
+    // Upload file baru
+    await client.uploadFrom(file.path, remotePath);
+
+    // Kembalikan URL yang bisa diakses publik
+    return `https://nova-agustina.my.id/22cns/FadhlanHafidz/Sawala${remotePath}`;
   } catch (err) {
-    console.warn("No old profile picture found or error deleting:", err.message);
+    console.error("FTP Upload Error:", err);
+    throw new Error("Failed to upload profile picture to FTP");
+  } finally {
+    client.close();
   }
-
-  // Pindahkan file baru
-  await fs.rename(file.path, newFilePath);
-
-  return `/uploads/${uid}/profilepic/${newFilename}`;
 };
 
 module.exports = { uploadProfilePicture };

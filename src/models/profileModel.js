@@ -149,10 +149,19 @@ exports.updatePassword = (uid, oldPassword, newPassword) => {
 // Delete user account
 exports.deleteAccount = async (uid) => {
   return new Promise((resolve, reject) => {
-    const query = "DELETE FROM tb_users WHERE uid = ?";
-    db.query(query, [uid], (err, result) => {
+    // Cek apakah user ada
+    const checkQuery = "SELECT uid FROM tb_users WHERE uid = ?";
+    db.query(checkQuery, [uid], (err, results) => {
       if (err) return reject(err);
-      resolve(result);
+      if (results.length === 0) return reject(new Error("User not found"));
+
+      // Jika user ada, lanjutkan penghapusan
+      const deleteQuery = "DELETE FROM tb_users WHERE uid = ?";
+      db.query(deleteQuery, [uid], (err, result) => {
+        if (err) return reject(err);
+        resolve(result);
+      });
     });
   });
 };
+

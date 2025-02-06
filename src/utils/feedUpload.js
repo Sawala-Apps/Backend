@@ -1,54 +1,64 @@
-const fs = require("fs");
 const path = require("path");
+const fs = require("fs");
+const connectFTP = require("../config/ftp"); // Import koneksi FTP
+require("dotenv").config();
 
 /**
- * Upload feed media files to a specific directory
- * @param {Array} files - Array of uploaded files (from Multer)
+ * Upload satu file ke FTP
+ * @param {Object} file - File yang diunggah dari Multer
  * @param {string} uid - User ID
  * @param {string} postid - Post ID
- * @returns {Promise<Array>} - Array of file URLs
+ * @returns {Promise<string>} - URL file yang tersimpan di FTP
  */
-const uploadFeedMedia = async (files, uid, postid) => {
-  if (!files || files.length === 0) return null; // Return null if no files uploaded
+const uploadFeedMedia = async (file, uid, postid) => {
+  if (!file) return null;
 
-  const uploadPath = path.join(__dirname, "../../upload", uid, "feed");
+  const ext = path.extname(file.originalname);
+  const filename = `${postid}${ext}`;
+  const remotePath = `/${uid}/feed/${filename}`;
 
-  // Create directory if it doesn't exist
-  if (!fs.existsSync(uploadPath)) {
-    fs.mkdirSync(uploadPath, { recursive: true });
+  const client = await connectFTP();
+  try {
+    // Buat direktori jika belum ada
+    await client.ensureDir(path.dirname(remotePath));
+
+    // Upload file ke FTP
+    await client.uploadFrom(file.path, remotePath);
+
+    // Hapus file lokal setelah diupload
+    fs.unlinkSync(file.path);
+
+    // Kembalikan URL yang bisa diakses publik
+    return `https://${process.env.FTP_PUBLIC_URL}/${uid}/feed/${filename}`;
+  } catch (err) {
+    console.error("FTP Upload Error:", err);
+    throw new Error("Failed to upload file to FTP");
+  } finally {
+    client.close();
   }
-
-  let fileUrls = [];
-  
-  files.forEach((file, index) => {
-    const ext = path.extname(file.originalname);
-    const newFilename = `${postid}${index === 0 ? '' : '-' + (index + 1)}${ext}`;
-    const newPath = path.join(uploadPath, newFilename);
-
-    // Rename and move the file
-    fs.renameSync(file.path, newPath);
-
-    // Store the file URL
-    fileUrls.push(`/upload/${uid}/feed/${newFilename}`);
-  });
-
-  return fileUrls;
 };
 
 /**
- * Delete all media files for a specific feed
+ * Hapus file dari FTP
  * @param {string} uid - User ID
  * @param {string} postid - Post ID
  */
 const deleteFeedMedia = async (uid, postid) => {
-  const uploadPath = path.join(__dirname, "../../upload", uid, "feed");
-
-  if (fs.existsSync(uploadPath)) {
-    fs.readdirSync(uploadPath).forEach((file) => {
-      if (file.startsWith(postid)) {
-        fs.unlinkSync(path.join(uploadPath, file));
+  const client = await connectFTP();
+  try {
+    const remoteDir = `/${uid}/feed/`;
+    
+    // Cari file dengan nama sesuai postid
+    const fileList = await client.list(remoteDir);
+    for (const file of fileList) {
+      if (file.name.startsWith(postid)) {
+        await client.remove(`${remoteDir}${file.name}`);
       }
-    });
+    }
+  } catch (err) {
+    console.error("FTP Delete Error:", err);
+  } finally {
+    client.close();
   }
 };
 

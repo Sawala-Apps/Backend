@@ -22,11 +22,11 @@ exports.createFeed = async (req, res) => {
     // Generate unique post ID
     const postid = uuidv4();
 
-    // Upload files via utility function
-    const mediaFolderPath = await uploadFeedMedia(req.files, uid, postid);
+    // Upload file jika ada
+    const mediaUrl = req.file ? await uploadFeedMedia(req.file, uid, postid) : null;
 
-    // Save feed to database
-    await feedModel.createFeed(postid, uid, contentText, mediaFolderPath);
+    // Simpan feed ke database
+    await feedModel.createFeed(postid, uid, contentText, mediaUrl);
     res.status(201).json({ message: "Feed created successfully" });
   } catch (err) {
     res.status(400).json({ error: err.message });
@@ -40,33 +40,29 @@ exports.editFeed = async (req, res) => {
     const { postid } = req.params;
     const { contentText } = req.body;
 
-    if (!uid) {
-      return res.status(400).json({ error: "User ID is missing" });
-    }
-
-    // Cek apakah feed ada
-    const postExists = await feedModel.checkPostExists(postid);
-    if (!postExists) {
+    // Cek apakah feed ada dan milik user
+    const existingFeed = await feedModel.getFeedDetails(postid, uid);
+    if (!existingFeed) {
       return res.status(404).json({ error: "The post does not exist or may have been deleted" });
     }
-
-    // Cek apakah pengguna adalah pemilik feed
-    const existingFeed = await feedModel.getFeedDetails(postid, uid);
     if (existingFeed.uid !== uid) {
       return res.status(403).json({ error: "Unauthorized to edit this feed" });
     }
 
-    // Jika ada file baru yang diupload, upload media
-    let mediaFolderPath = existingFeed.content_image; // Menyimpan path lama jika tidak ada file baru
-    if (req.files && req.files.length > 0) {
-      mediaFolderPath = await uploadFeedMedia(req.files, uid, postid);
+    let mediaUrl = existingFeed.content_image;
+
+    // Jika ada file baru yang diupload, hapus file lama & upload yang baru
+    if (req.file) {
+      if (existingFeed.content_image) {
+        await deleteFeedMedia(uid, postid);
+      }
+      mediaUrl = await uploadFeedMedia(req.file, uid, postid);
     }
 
     // Update feed di database
-    await feedModel.updateFeed(postid, uid, contentText, mediaFolderPath);
+    await feedModel.updateFeed(postid, uid, contentText, mediaUrl);
     res.status(200).json({ message: "Feed updated successfully" });
   } catch (err) {
-    console.error(err); // Debugging
     res.status(400).json({ error: err.message });
   }
 };
@@ -77,22 +73,21 @@ exports.deleteFeed = async (req, res) => {
     const { uid } = req.user;
     const { postid } = req.params;
 
-    // Cek apakah feed ada
-    const postExists = await feedModel.checkPostExists(postid);
-    if (!postExists) {
+    // Cek apakah feed ada dan milik user
+    const existingFeed = await feedModel.getFeedDetails(postid, uid);
+    if (!existingFeed) {
       return res.status(404).json({ error: "The post does not exist or may have been deleted" });
     }
-
-    // Cek apakah pengguna adalah pemilik feed
-    const existingFeed = await feedModel.getFeedDetails(postid, uid);
     if (existingFeed.uid !== uid) {
       return res.status(403).json({ error: "Unauthorized to delete this feed" });
     }
 
-    // Delete the entire media folder
-    await deleteFeedMedia(uid, postid);
+    // Hapus file media dari FTP jika ada
+    if (existingFeed.content_image) {
+      await deleteFeedMedia(uid, postid);
+    }
 
-    // Delete feed from database
+    // Hapus feed dari database
     await feedModel.deleteFeed(postid, uid);
     res.status(200).json({ message: "Feed deleted successfully" });
   } catch (err) {
@@ -107,16 +102,16 @@ exports.getFeedDetails = async (req, res) => {
     const { uid } = req.user;
 
     if (!postid || !uid) {
-      throw new Error('Missing required parameters');
+      throw new Error("Missing required parameters");
     }
 
     const feed = await feedModel.getFeedDetails(postid, uid);
+    if (!feed) {
+      return res.status(404).json({ error: "The post does not exist or may have been deleted" });
+    }
+
     res.status(200).json(feed);
   } catch (err) {
-    // Memeriksa apakah error berasal dari 'Feed not found'
-    if (err.message === 'Feed not found') {
-      return res.status(404).json({ error: 'The post does not exist or may have been deleted' });
-    }
-    res.status(404).json({ error: err.message });
+    res.status(400).json({ error: err.message });
   }
 };
